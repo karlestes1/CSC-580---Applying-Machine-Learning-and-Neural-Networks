@@ -24,4 +24,7 @@ I am using the [Comment Anchors extension](https://marketplace.visualstudio.com/
 For anyone using this extension, please note that CELL, FUNCTION, and CLASS are tags I defined myself. 
 <br />
 
+### (WIP) Critical Thinking 1: [Basic Facial Recognition Program](CT%201)
+- A python script to perform basic facial recognition in an image and draw a red bounding box around detected faces
+- Utilizes the [facial_recognition](https://pypi.org/project/face-recognition/) and [PIL](https://en.wikipedia.org/wiki/Python_Imaging_Library) libraries
 ___
