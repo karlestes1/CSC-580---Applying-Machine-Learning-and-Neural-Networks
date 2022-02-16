@@ -1,2 +1,7 @@
-CT\ 1/image_out.jpg
+# General
+*.zip
+.DS_Store
+
+# Critical Thinking Assignmantes
 CT\ 1/test.jpg
+CT\ 1/Screenshot\ of\ Program\ Output.png
