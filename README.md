@@ -6,7 +6,7 @@ ___
 
 ### Languages and Tools
 [<img align="left" height="32" width="32" src="https://cdn.svgporn.com/logos/python.svg" />](https://www.python.org)
-[<img align="left" height="32" width="32" src="https://www.psych.mcgill.ca/labs/mogillab/anaconda2/lib/python2.7/site-packages/anaconda_navigator/static/images/anaconda-icon-512x512.png" />](https://www.anaconda.com/pricing)
+[<img align="left" height="32" width="32" src="https://www.psych.mcgill.ca/labs/mogillab/anaconda2/lib/python2.7/site-packages/anaconda_navigator/static/images/anaconda-icon-512x512.png" />](https://www.anaconda.com/)
 [<img align="left" height="32" width="32" src="https://cdn.svgporn.com/logos/visual-studio-code.svg" />](https://code.visualstudio.com)
 [<img align="left" height="32" width="32" src="https://cdn.svgporn.com/logos/git-icon.svg" />](https://git-scm.com)
 [<img align="left" height="32" width="32" src="https://cdn.svgporn.com/logos/gitkraken.svg" />](https://www.gitkraken.com)
@@ -30,6 +30,8 @@ ___
 - A python script to perform basic facial recognition in an image and draw a red bounding box around detected faces
 - Utilizes the [facial_recognition](https://pypi.org/project/face-recognition/) and [PIL](https://en.wikipedia.org/wiki/Python_Imaging_Library) libraries
 
+### (WIP) Critical Thinking 2: [Predicting Future Sales](CT%202)
+<!--TODO Assignment description-->
 ___
 ## Portfolio Project (WIP)
 **Information will be added as progress is made**
