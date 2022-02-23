@@ -31,7 +31,11 @@ ___
 - Utilizes the [facial_recognition](https://pypi.org/project/face-recognition/) and [PIL](https://en.wikipedia.org/wiki/Python_Imaging_Library) libraries
 
 ### (WIP) Critical Thinking 2: [Predicting Future Sales](CT%202)
-<!--TODO Assignment description-->
+<!--TODO  Better Assignment description-->
+- In a nutshell, *sales_data_test.csv* and *sales_data_test.csv* contain data that will be used to train a neural network to predict how much money can be expected form the future sale of new video games. The .csv files were retrieved from one of [Toni Esteves repos](https://github.com/toniesteves/adam-geitgey-building-deep-learning-keras/tree/master/03). 
+
+### (WIP) Critical Thinking 3: [Predicting Fuel Efficiency Using TensorFlow](CT%203)
+- In a nutshell, this is a *regression* problem where a **neural network** will be created with the ```tf.keras``` API and will utilize the [**Auto MPG**](https://archive.ics.uci.edu/ml/datasets/auto+mpg) dataset. The trained model will be used to predict the feul efficiency of late 1970s and early 1980s automobiles
 ___
 ## Portfolio Project (WIP)
 **Information will be added as progress is made**
