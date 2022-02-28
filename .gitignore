@@ -1,5 +1,8 @@
 # General
 *.zip
+*.docx
+*.pdf
+*.pages
 .DS_Store
 
 # Critical Thinking Assignmantes
@@ -7,3 +10,4 @@ CT\ 1/test.jpg
 CT\ 1/Screenshot\ of\ Program\ Output.png
 
 CT\ 2/hpo/
+CT\ 2/*.png

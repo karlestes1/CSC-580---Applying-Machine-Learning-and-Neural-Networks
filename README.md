@@ -30,9 +30,14 @@ ___
 - A python script to perform basic facial recognition in an image and draw a red bounding box around detected faces
 - Utilizes the [facial_recognition](https://pypi.org/project/face-recognition/) and [PIL](https://en.wikipedia.org/wiki/Python_Imaging_Library) libraries
 
-### (WIP) Critical Thinking 2: [Predicting Future Sales](CT%202)
-<!--TODO  Better Assignment description-->
+### Critical Thinking 2: [Predicting Future Sales](CT%202)
 - In a nutshell, *sales_data_test.csv* and *sales_data_test.csv* contain data that will be used to train a neural network to predict how much money can be expected form the future sale of new video games. The .csv files were retrieved from one of [Toni Esteves repos](https://github.com/toniesteves/adam-geitgey-building-deep-learning-keras/tree/master/03). 
+- This script produces two different models for predicting future sales of a video game. Both models are constructed with Keras and are Sequential models. One model 
+was constructed via the assignment parameters and was constructed of a few Dense hidden layers with a single output node. The other model was 'optimized' using the 
+keras_tuner library. 
+    - To run the script with hyperparameter tuning, add ```--hpo``` when running the program
+- All the data preprocessing and outputs are structured as per the assignment parameters. The inclusion of hyperparemter tuning via the keras_tuner library
+was a deviation from the assignment instructions. The core assingment was still completed, however, and this gave me a chance to exlplore hyperparemter tuning.
 
 ### (WIP) Critical Thinking 3: [Predicting Fuel Efficiency Using TensorFlow](CT%203)
 - In a nutshell, this is a *regression* problem where a **neural network** will be created with the ```tf.keras``` API and will utilize the [**Auto MPG**](https://archive.ics.uci.edu/ml/datasets/auto+mpg) dataset. The trained model will be used to predict the feul efficiency of late 1970s and early 1980s automobiles
