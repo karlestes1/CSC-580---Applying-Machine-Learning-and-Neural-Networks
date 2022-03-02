@@ -16,27 +16,31 @@ Comment Anchors
 ---------------
 I am using the Comment Anchors extension for Visual Studio Code which utilizes specific keywords
 to allow for quick navigation around the file by creating sections and anchor points. Any use
-of "anchor", "todo", "fixme", "stub", "note", "review", "section", "class", "function", and "link" are used in conjunction with 
-this extension. To trigger these keywords, they must be typed in all caps. 
+of "anchor", "todo", "fixme", "stub", "note", "review", "section", "class", "function", and "link" are used in conjunction with this extension. To trigger these keywords, they must be typed in all caps. 
 """
 
+from turtle import back
 import numpy as np
 import face_recognition as fr
 import argparse
 import progressbar
 import os
+import sys
 import Augmentor
 from colorama import init, Fore, Back, Style
 from PIL import Image, ImageDraw
 
 init()
 
-def print_color(s, color=Fore.WHITE, background=Back.BLACK ,brightness=Style.NORMAL, **kwargs):
+def print_color(s, color=Fore.WHITE, background=None ,brightness=Style.NORMAL, **kwargs):
     """
     Utility function wrapping the regular `print()` function 
     but with colors and brightness
     """
-    print(f"{brightness}{color}{background}{s}{Style.RESET_ALL}", **kwargs)
+    if background is None:
+        print(f"{brightness}{color}{s}{Style.RESET_ALL}", **kwargs)
+    else:
+        print(f"{brightness}{color}{background}{s}{Style.RESET_ALL}", **kwargs)
 
 class Faces:
     """
@@ -72,6 +76,9 @@ class Faces:
         self.image_path = image_path
         self.__augment_path = os.path.join(image_path, "tmp/")
         self.faces = []
+
+        if not os.path.isdir(self.__augment_path):
+            os.makedirs(self.__augment_path)
 
     def __parse_image_name(name: str) -> str :
         """
@@ -143,6 +150,7 @@ class Faces:
             num_images = 1
         else:
             images = os.listdir(self.image_path)
+            images.remove("tmp")
             num_images = len(images)
 
         # Augment
@@ -161,11 +169,10 @@ class Faces:
                 print_color("WARNING: {} is not a file. Unable to read".format(images[i]), Fore.YELLOW)
                 continue
 
-            # Load Image File
-            image = fr.load_image_file(image_path)
-
-            # Generate Encoding
+            # Load Image file and generate encodings
             try:
+                # Load Image File
+                image = fr.load_image_file(image_path)
                 encoding = fr.face_encodings(image)[0]
                 name = self.__parse_image_name(image_path)
 
@@ -176,7 +183,7 @@ class Faces:
             except IndexError:
                 print_color("WARNING: Unable to locate any faces in {}".format(images[i]), Fore.YELLOW)
             except:
-                print_color("ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(image_path), Fore.RED, Back.BLACK, Style.BRIGHT)
+                print_color(" ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(image_path), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
                 exit(2)
 
         # Remove augmented images that might have been created
@@ -263,6 +270,23 @@ class Unknown_Images:
                 print_color("WARNING: No faces detected in unkown image: {}. Ignooring and moving to next image...".format(images[i]), Fore.YELLOW)
                 continue
             except:
-                print_color("ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(images[i]), Fore.RED, Back.BLACK, Style.BRIGHT)
+                print_color(" ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(images[i]), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
 
                 
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--known_faces", type=str, default="faces/", help="Path to either a folder containin multiple image files or a singluar image file. Each file should contain only one person's face.")
+    parser.add_argument("--unkown_images", type=str, default="images/", help="Path to either a folder containin multiple image files or a singluar image file.")
+    parser.add_argument("--output_dir", type=str, default="output/", help="Path to output directory. When annotation mode is chosen, this is the folder where the annoted images will be saved.")
+    parser.add_argument("-a", "--augment", action="store_true", default=False, help="Flag which turns on image augmentation pipeline of known faces to increase the number of facial encodings per known face")
+
+    args = parser.parse_args()
+
+    faces = Faces(args.known_faces)
+    unkowns = Unknown_Images(args.unkown_images)
+
+    print_color("Hello")
+    faces.load_faces(augment=args.augment)
+    unkowns.load_images()
