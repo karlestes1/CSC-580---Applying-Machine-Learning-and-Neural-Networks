@@ -19,6 +19,7 @@ to allow for quick navigation around the file by creating sections and anchor po
 of "anchor", "todo", "fixme", "stub", "note", "review", "section", "class", "function", and "link" are used in conjunction with this extension. To trigger these keywords, they must be typed in all caps. 
 """
 
+from contextlib import redirect_stdout
 from turtle import back
 import numpy as np
 import face_recognition as fr
@@ -57,12 +58,10 @@ class Faces:
     ----------
     image_path : str
         This is where the provided filepath is stored
-    faces : list[dict{
-        encoding : List
-            A facial encoding created using the face_recognition library
-        name : List[str]
-            A name associated with the encoding 
-        }]
+    encoding : List
+         A list facial encoding created using the face_recognition library
+    names
+        A name associated with the encoding. Matched by list index 
     __augment_path : str
         An internal variable used to store the path to the a temporary augmentation folder in case image augmentation occurs
     """
@@ -71,16 +70,18 @@ class Faces:
 
         if not os.path.isdir(image_path):
             if not (image_path.endswith(".jpg") or image_path.endswith(".jpeg") or image_path.endswith(".png")):
-                print_color("WARNING: Provided filepath is not an compatable image or directory. Issues will occur when attempting to load faces for encoding.", Fore.YELLOW)
+                print_color("WARNING: Provided filepath is not a compatable image or directory. Issues will occur when attempting to load faces for encoding.", Fore.YELLOW)
  
         self.image_path = image_path
         self.__augment_path = os.path.join(image_path, "tmp/")
-        self.faces = []
+        
+        self.encodings = []
+        self.names = []
 
         if not os.path.isdir(self.__augment_path):
             os.makedirs(self.__augment_path)
 
-    def __parse_image_name(name: str) -> str :
+    def __parse_image_name(self, name: str) -> str :
         """
         Cleans up the filename and returns a string to be used as the 'name' for the face encoding
         """
@@ -89,6 +90,7 @@ class Faces:
         name = sp[1] if sp[1] != None else sp[0]
 
         no_ext = name[0:name.find(".")] # Remove extensions
+        no_ext = no_ext.replace("faces_original_", "")
         no_ext = no_ext.replace("_", " ") # Replace underscores with places
 
         return no_ext
@@ -116,8 +118,6 @@ class Faces:
         pipe.sample(num_images * num_samples_per_image)
 
         return [os.path.join('tmp', name) for name in os.listdir(self.__augment_path)]
-
-        
 
 
     def load_faces(self, path : str = None, augment : bool = False) :
@@ -151,11 +151,12 @@ class Faces:
         else:
             images = os.listdir(self.image_path)
             images.remove("tmp")
+            images.remove(".DS_Store")
             num_images = len(images)
 
         # Augment
         if augment:
-            augmented_images = self.__augment_images(len(num_images), 5)
+            augmented_images = self.__augment_images(num_images, 5)
             images = images + augmented_images
             num_images = len(images) # New length with augmented images
 
@@ -169,17 +170,21 @@ class Faces:
                 print_color("WARNING: {} is not a file. Unable to read".format(images[i]), Fore.YELLOW)
                 continue
 
+            try:
+                image = fr.load_image_file(image_path)
+            except:
+                print_color(" ERROR: Something went wrong when loading {}. Please check the image file. Aborting...".format(image_path), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
+
             # Load Image file and generate encodings
             try:
                 # Load Image File
-                image = fr.load_image_file(image_path)
                 encoding = fr.face_encodings(image)[0]
                 name = self.__parse_image_name(image_path)
 
-                # self.encodings.append(encoding)
-                # self.names.append(name)
+                self.encodings.append(encoding)
+                self.names.append(name)
 
-                self.faces.append({'encoding': encoding, 'name': name})
+                # self.faces.append({'encoding': encoding, 'name': name})
             except IndexError:
                 print_color("WARNING: Unable to locate any faces in {}".format(images[i]), Fore.YELLOW)
             except:
@@ -215,15 +220,15 @@ class Unknown_Images:
             A list containing all face locations (top, right, bottom, left) for the associated image. Indexes match `encodings`
         encodings : list[]
             A list containing face encodings
-        names : list[str]
-            Instantiated as an empty list
+        filename : str
+            The original name of the file without file extensions
     )]
     """
 
     def __init__(self, path : str = None):
         if not os.path.isdir(path):
             if not (path.endswith(".jpg") or path.endswith(".jpeg") or path.endswith(".png")):
-                print_color("WARNING: Provided filepath is not an compatable image or directory. Issues will occur when attempting to load faces for encoding.", Fore.YELLOW)
+                print_color("WARNING: Provided filepath is not a compatable image or directory. Issues will occur when attempting to load faces for encoding.", Fore.YELLOW)
 
         self.path = path
         self.images = []
@@ -264,7 +269,7 @@ class Unknown_Images:
                 face_locations = fr.face_locations(unkown_image)
                 face_encodings = fr.face_encodings(unkown_image, face_locations)
                 
-                self.images.append({'image': Image.fromarray(unkown_image), 'face_locations': face_locations, 'face_encodings': face_encodings, 'names': []})
+                self.images.append({'image': Image.fromarray(unkown_image), 'face_locations': face_locations, 'face_encodings': face_encodings, 'filename': (images[i])[0:images[i].find(".")]})
 
             except IndexError:
                 print_color("WARNING: No faces detected in unkown image: {}. Ignooring and moving to next image...".format(images[i]), Fore.YELLOW)
@@ -273,6 +278,61 @@ class Unknown_Images:
                 print_color(" ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(images[i]), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
 
                 
+def annotate_images(faces : Faces, images: Unknown_Images, output_dir : str) :
+    """
+    For each image in the Unkown_Images class, bounding boxes with names are drawn around the faces and a copy is saved to the specified `output_dir`
+
+    Annotation code is primarily adapted from example in face_recognition library (https://github.com/ageitgey/face_recognition/blob/master/examples/identify_and_draw_boxes_on_faces.py)
+
+    Parameters
+    ----------
+    faces : Faces
+        A collection of all the known faces. `Faces.load_faces()` should have already been run
+    images : Unkown_Images
+        A collection of all of the images that will be annotated. `Unkown_Images.load_images()` should have already been run
+    output_dir : str
+        A path to the output directory. The directory will be created if it doesn't already exist
+    """
+
+    # Check if dir exists
+    if not os.path.isdir(output_dir):
+        try:
+            os.makedirs(output_dir)
+        except:
+            print_color("ERROR creating dir {}".format(output_dir), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
+            exit(4)
+
+    # Loop for all images
+    for group in progressbar.progressbar(images.images, redirect_stdout=True):
+
+        # Create Pillow ImageDraw Draw instance to draw with
+        im = group['image']
+        draw = ImageDraw.Draw(im)
+
+        # Loop through each face found in the unkown image
+        for (top,right,bottom,left), face_encoding in zip(group['face_locations'], group['face_encodings']):
+            # See if there is a face match
+            matches = fr.compare_faces(faces.encodings, face_encoding)
+
+            name = "Unkown"
+
+            # Use known face with smallest distance to new face
+            face_distances = fr.face_distance(faces.encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            if matches[best_match_index]:
+                name = faces.names[best_match_index]
+
+            # Draw a label with a name below the face
+            text_width, text_height = draw.textsize(name)
+            draw.rectangle(((left, bottom - text_height - 10), (right, bottom)), fill=(0, 0, 255), outline=(0, 0, 255))
+            draw.text((left + 6, bottom - text_height - 5), name, fill=(255, 255, 255, 255))
+        
+        # Remove the drawing library from memory as per the Pillow docs
+        del draw
+
+        # Save the image
+        im.save(os.path.join(output_dir, "{}_annotated.jpg".format(group['filename'])))
+
 
 if __name__ == "__main__":
 
@@ -287,6 +347,7 @@ if __name__ == "__main__":
     faces = Faces(args.known_faces)
     unkowns = Unknown_Images(args.unkown_images)
 
-    print_color("Hello")
+    print_color("Loading faces and images...", Fore.WHITE, None, Style.BRIGHT)
     faces.load_faces(augment=args.augment)
     unkowns.load_images()
+    

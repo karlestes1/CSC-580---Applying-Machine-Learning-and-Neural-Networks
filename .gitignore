@@ -4,6 +4,7 @@
 *.pdf
 *.pages
 .DS_Store
+launch.json
 
 # Critical Thinking Assignmantes
 CT\ 1/test.jpg
