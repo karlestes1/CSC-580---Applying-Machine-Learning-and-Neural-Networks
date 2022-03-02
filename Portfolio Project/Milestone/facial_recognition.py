@@ -350,6 +350,9 @@ def annotate_images(faces : Faces, images: Unknown_Images, output_dir : str) :
             text_width, text_height = draw.textsize(name)
             draw.rectangle(((left, bottom - text_height - 10), (right, bottom)), fill=(0, 0, 255), outline=(0, 0, 255))
             draw.text((left + 6, bottom - text_height - 5), name, fill=(255, 255, 255, 255))
+
+            # Draw a bounding box around the face
+            draw.rectangle((left, bottom, right, top), outline=(0,0,255))
         
         # Remove the drawing library from memory as per the Pillow docs
         del draw
