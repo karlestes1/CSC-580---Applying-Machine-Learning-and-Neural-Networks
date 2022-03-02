@@ -27,6 +27,7 @@ import argparse
 import progressbar
 import os
 import sys
+import math
 import Augmentor
 from colorama import init, Fore, Back, Style
 from PIL import Image, ImageDraw
@@ -197,10 +198,31 @@ class Faces:
                 os.remove(os.path.join(self.__augment_path, f))
             except OSError as e:
                 print_color(f"ERROR Deleting Augmented Image File {f} : {e}")
+
+    def get_unique_names(self, name : str):
+        """
+        Returns a set of unique names so as to avoid duplicates from image annotation
+        """
+        return set(self.names)
+    
+    def get_face_encodings(self, name : str):
+        """
+        Return a list of all the face encodings that match a specific name
+        """
+        found = []
+        
+        for i, _name in enumerate(self.names):
+            if name == _name:
+                found.append(self.encodings[i])
+
+        if len(found) == 0:
+            print_color("WARNING: No encodings found for name {}".format(name), Fore.YELLOW, None, Style.NORMAL, file=sys.stderr)
+
+        return found
         
 class Unknown_Images:
     """
-    The Unkown_Images class contains loaded copies of all images with unkown faces, locations for each face, and encodings for each face.
+    The Unknown_Images class contains loaded copies of all images with unknown faces, locations for each face, and encodings for each face.
 
     Acceptable image extensions are .jpg, .jpeg, and .png
 
@@ -222,6 +244,8 @@ class Unknown_Images:
             A list containing face encodings
         filename : str
             The original name of the file without file extensions
+        extension : str
+            The original file extension
     )]
     """
 
@@ -263,16 +287,16 @@ class Unknown_Images:
         for i in progressbar.progressbar(range(num_images), redirect_stdout=True):
 
             # Load the image
-            unkown_image = fr.load_image_file(os.path.join(self.path, images[i]))
+            unknown_image = fr.load_image_file(os.path.join(self.path, images[i]))
 
             try:
-                face_locations = fr.face_locations(unkown_image)
-                face_encodings = fr.face_encodings(unkown_image, face_locations)
+                face_locations = fr.face_locations(unknown_image)
+                face_encodings = fr.face_encodings(unknown_image, face_locations)
                 
-                self.images.append({'image': Image.fromarray(unkown_image), 'face_locations': face_locations, 'face_encodings': face_encodings, 'filename': (images[i])[0:images[i].find(".")]})
+                self.images.append({'image': Image.fromarray(unknown_image), 'face_locations': face_locations, 'face_encodings': face_encodings, 'filename': (images[i])[0:images[i].find(".")], 'extension': (images[i])[images[i].find("."):]})
 
             except IndexError:
-                print_color("WARNING: No faces detected in unkown image: {}. Ignooring and moving to next image...".format(images[i]), Fore.YELLOW)
+                print_color("WARNING: No faces detected in unknown image: {}. Ignooring and moving to next image...".format(images[i]), Fore.YELLOW)
                 continue
             except:
                 print_color(" ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(images[i]), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
@@ -280,7 +304,7 @@ class Unknown_Images:
                 
 def annotate_images(faces : Faces, images: Unknown_Images, output_dir : str) :
     """
-    For each image in the Unkown_Images class, bounding boxes with names are drawn around the faces and a copy is saved to the specified `output_dir`
+    For each image in the Unknown_Images class, bounding boxes with names are drawn around the faces and a copy is saved to the specified `output_dir`
 
     Annotation code is primarily adapted from example in face_recognition library (https://github.com/ageitgey/face_recognition/blob/master/examples/identify_and_draw_boxes_on_faces.py)
 
@@ -288,8 +312,8 @@ def annotate_images(faces : Faces, images: Unknown_Images, output_dir : str) :
     ----------
     faces : Faces
         A collection of all the known faces. `Faces.load_faces()` should have already been run
-    images : Unkown_Images
-        A collection of all of the images that will be annotated. `Unkown_Images.load_images()` should have already been run
+    images : Unknown_Images
+        A collection of all of the images that will be annotated. `Unknown_Images.load_images()` should have already been run
     output_dir : str
         A path to the output directory. The directory will be created if it doesn't already exist
     """
@@ -309,15 +333,15 @@ def annotate_images(faces : Faces, images: Unknown_Images, output_dir : str) :
         im = group['image']
         draw = ImageDraw.Draw(im)
 
-        # Loop through each face found in the unkown image
-        for (top,right,bottom,left), face_encoding in zip(group['face_locations'], group['face_encodings']):
+        # Loop through each face found in the unknown image
+        for (top,right,bottom,left), unknown_encoding in zip(group['face_locations'], group['face_encodings']):
             # See if there is a face match
-            matches = fr.compare_faces(faces.encodings, face_encoding)
+            matches = fr.compare_faces(faces.encodings, unknown_encoding)
 
-            name = "Unkown"
+            name = "Unknown"
 
             # Use known face with smallest distance to new face
-            face_distances = fr.face_distance(faces.encodings, face_encoding)
+            face_distances = fr.face_distance(faces.encodings, unknown_encoding)
             best_match_index = np.argmin(face_distances)
             if matches[best_match_index]:
                 name = faces.names[best_match_index]
@@ -331,23 +355,86 @@ def annotate_images(faces : Faces, images: Unknown_Images, output_dir : str) :
         del draw
 
         # Save the image
-        im.save(os.path.join(output_dir, "{}_annotated.jpg".format(group['filename'])))
+        try:
+            im.save(os.path.join(output_dir, "{}_annotated{}".format(group['filename'], group['extension'])))
+        except:
+            print_color(" ERROR: Could not save {}".format(os.path.join(output_dir, "{}_annotated{}".format(group['filename'], group['extension']))), Fore.RED, None, Style.BRIGHT, file=sys.stderr)
 
+def search_for_specific_face(faces : Faces, images : Unknown_Images):
+
+    known_encodings = None
+    name = None
+    found_images = []
+
+
+    # Get specific face encoding
+    if len(faces.encodings) > 1:
+        # Print out all encodings
+        names = faces.get_unique_names()
+
+        for i, name in enumerate(names):
+            print(f"{i+1}. {name}\t", end='')
+            if (i%2) == 0:
+                print("")
+            
+        # Get proper input
+        user_input = -1
+        while((user_input < 1) or (user_input > len(names))):
+            user_input = int(input("Please choose a face to search for in the unknown images : "))
+
+        name = names[user_input - 1]
+        known_encodings = faces.get_face_encodings(name) # Retrieve all matching encodings
+    else:
+        known_encodings = faces.encodings
+        name = faces.names[0]
+
+    # Loop through all images and search for specific face
+    for group in progressbar.progressbar(images.images):
+        for unknown_encoding in group['face_encodings']:
+            # See if there is a match
+            matches = fr.compare_faces(known_encodings, unknown_encoding)
+
+            # See if a match exits
+            if True in matches:
+                found_images.append(f"{group['filename']}{group['extension']}")
+
+    return name, found_images
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--known_faces", type=str, default="faces/", help="Path to either a folder containin multiple image files or a singluar image file. Each file should contain only one person's face.")
-    parser.add_argument("--unkown_images", type=str, default="images/", help="Path to either a folder containin multiple image files or a singluar image file.")
+    parser.add_argument("--unknown_images", type=str, default="images/", help="Path to either a folder containin multiple image files or a singluar image file.")
     parser.add_argument("--output_dir", type=str, default="output/", help="Path to output directory. When annotation mode is chosen, this is the folder where the annoted images will be saved.")
     parser.add_argument("-a", "--augment", action="store_true", default=False, help="Flag which turns on image augmentation pipeline of known faces to increase the number of facial encodings per known face")
 
     args = parser.parse_args()
 
+    print("* * * * * Loading Known Faces and Images * * * * *")
     faces = Faces(args.known_faces)
-    unkowns = Unknown_Images(args.unkown_images)
+    unknowns = Unknown_Images(args.unknown_images)
 
-    print_color("Loading faces and images...", Fore.WHITE, None, Style.BRIGHT)
+    # print_color("Loading faces and images...", Fore.WHITE, None, Style.BRIGHT)
     faces.load_faces(augment=args.augment)
-    unkowns.load_images()
+    unknowns.load_images()
+
+    # Operating Mode
+    print("\nPlease choose a program mode:\n1. Search unknown images for a specified face\n2. Annote unknown images with detected faces")
+    user_input = 0
+
+    while user_input < 1 or user_input > 2:
+        user_input = int(input("Choice : "))
+
+    if user_input == 1:
+        print("* * * * * Beginning Search * * * * *")
+        name, images = search_for_specific_face(faces, unknowns)
+
+        if(len(images) > 0):
+            print(f"The face for {name} was detected in the following images: {images}")
+        else:
+            print(f"The face for {name} was not detected in any images")
+
+    if user_input == 2:
+        print("* * * * * Beginning Annotation * * * * *")
+        annotate_images(faces, unknowns, args.output_dir)
     
