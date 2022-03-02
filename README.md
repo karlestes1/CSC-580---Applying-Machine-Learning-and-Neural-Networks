@@ -40,7 +40,9 @@ keras_tuner library.
 was a deviation from the assignment instructions. The core assingment was still completed, however, and this gave me a chance to exlplore hyperparemter tuning.
 
 ### (WIP) Critical Thinking 3: [Predicting Fuel Efficiency Using TensorFlow](CT%203)
-- In a nutshell, this is a *regression* problem where a **neural network** will be created with the ```tf.keras``` API and will utilize the [**Auto MPG**](https://archive.ics.uci.edu/ml/datasets/auto+mpg) dataset. The trained model will be used to predict the feul efficiency of late 1970s and early 1980s automobiles
+- In a nutshell, this is a *regression* problem where a **neural network** will be created with the ```tf.keras``` API and will utilize the [**Auto MPG**](https://archive.ics.uci.edu/ml/datasets/auto+mpg) dataset. The trained model will be used to predict the feul efficiency of late 1970s and early 1980s automobiles.
+
+### (WIP) Critical Thinking 4: [Toxicology Testing](CT%204)
 ___
-## Portfolio Project (WIP)
+## (WIP) [Portfolio Project](Portfolio%20Project)
 **Information will be added as progress is made**
