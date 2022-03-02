@@ -199,7 +199,7 @@ class Faces:
             except OSError as e:
                 print_color(f"ERROR Deleting Augmented Image File {f} : {e}")
 
-    def get_unique_names(self, name : str):
+    def get_unique_names(self):
         """
         Returns a set of unique names so as to avoid duplicates from image annotation
         """
@@ -382,7 +382,7 @@ def search_for_specific_face(faces : Faces, images : Unknown_Images):
         while((user_input < 1) or (user_input > len(names))):
             user_input = int(input("Please choose a face to search for in the unknown images : "))
 
-        name = names[user_input - 1]
+        name = list(names)[user_input - 1]
         known_encodings = faces.get_face_encodings(name) # Retrieve all matching encodings
     else:
         known_encodings = faces.encodings
