@@ -24,11 +24,10 @@ import numpy as np
 import face_recognition as fr
 import argparse
 import progressbar
-import PIL
 import os
 import Augmentor
-import glob
 from colorama import init, Fore, Back, Style
+from PIL import Image, ImageDraw
 
 init()
 
@@ -54,11 +53,12 @@ class Faces:
     ----------
     image_path : str
         This is where the provided filepath is stored
-    encodings : List
-        A list of facial encodings created using the face_recognition library
-    names : List[str]
-        A list of equal length to encodings which contains corresponding names for each face.
-        The name match the facial encoding at the same list index
+    faces : list[dict{
+        encoding : List
+            A facial encoding created using the face_recognition library
+        name : List[str]
+            A name associated with the encoding 
+        }]
     __augment_path : str
         An internal variable used to store the path to the a temporary augmentation folder in case image augmentation occurs
     """
@@ -71,8 +71,7 @@ class Faces:
  
         self.image_path = image_path
         self.__augment_path = os.path.join(image_path, "tmp/")
-        self.encodings = []
-        self.names = []
+        self.faces = []
 
     def __parse_image_name(name: str) -> str :
         """
@@ -170,8 +169,10 @@ class Faces:
                 encoding = fr.face_encodings(image)[0]
                 name = self.__parse_image_name(image_path)
 
-                self.encodings.append(encoding)
-                self.names.append(name)
+                # self.encodings.append(encoding)
+                # self.names.append(name)
+
+                self.faces.append({'encoding': encoding, 'name': name})
             except IndexError:
                 print_color("WARNING: Unable to locate any faces in {}".format(images[i]), Fore.YELLOW)
             except:
@@ -185,5 +186,83 @@ class Faces:
             except OSError as e:
                 print_color(f"ERROR Deleting Augmented Image File {f} : {e}")
         
+class Unknown_Images:
+    """
+    The Unkown_Images class contains loaded copies of all images with unkown faces, locations for each face, and encodings for each face.
 
-        
+    Acceptable image extensions are .jpg, .jpeg, and .png
+
+    Parameters
+    ----------
+    path : str
+        Path to dir/file of image(s) to be loaded in
+
+    Attributes
+    ----------
+    path : str
+        Path to dir/file of image(s) to be loaded in
+    images : list[dict(
+        image : Image
+            A PIL-formated image
+        face_locations : list[tuple]
+            A list containing all face locations (top, right, bottom, left) for the associated image. Indexes match `encodings`
+        encodings : list[]
+            A list containing face encodings
+        names : list[str]
+            Instantiated as an empty list
+    )]
+    """
+
+    def __init__(self, path : str = None):
+        if not os.path.isdir(path):
+            if not (path.endswith(".jpg") or path.endswith(".jpeg") or path.endswith(".png")):
+                print_color("WARNING: Provided filepath is not an compatable image or directory. Issues will occur when attempting to load faces for encoding.", Fore.YELLOW)
+
+        self.path = path
+        self.images = []
+
+    def load_images(self, path : str = None):
+        """
+        Loads faces and generates encodings for each face in the detected image
+
+        Parameters
+        ----------
+        path : str
+            The path to load images from. WILL OVERWRITE PATH PROVIDED AT CLASS INSTANTIATION. LEAVE AS NONE TO PREVENT OVERWRITE
+        """
+
+        # Check if path overwrite
+        if path != None:
+            self.path = path
+
+        if self.path is None:
+            print_color("ERROR: Image path is None. Unable to load faces from nothing...", Fore.RED, Back.BLACK, Style.BRIGHT)
+            exit(1)
+
+        # Get num images
+        if not (os.path.isdir(self.path)):
+            images = [self.path]
+            num_images = 1
+        else:
+            images = os.listdir(self.path)
+            num_images = len(images)
+
+        # Loop until all images are loaded
+        for i in progressbar.progressbar(range(num_images), redirect_stdout=True):
+
+            # Load the image
+            unkown_image = fr.load_image_file(os.path.join(self.path, images[i]))
+
+            try:
+                face_locations = fr.face_locations(unkown_image)
+                face_encodings = fr.face_encodings(unkown_image, face_locations)
+                
+                self.images.append({'image': Image.fromarray(unkown_image), 'face_locations': face_locations, 'face_encodings': face_encodings, 'names': []})
+
+            except IndexError:
+                print_color("WARNING: No faces detected in unkown image: {}. Ignooring and moving to next image...".format(images[i]), Fore.YELLOW)
+                continue
+            except:
+                print_color("ERROR: Something went wrong when processing {}. Please check the image file. Aborting...".format(images[i]), Fore.RED, Back.BLACK, Style.BRIGHT)
+
+                
