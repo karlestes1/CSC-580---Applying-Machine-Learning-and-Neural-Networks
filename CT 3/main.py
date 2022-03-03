@@ -123,6 +123,12 @@ if __name__ == "__main__":
     print("\n* * * * * Training the Models * * * * *")
     print("* * * MSE Model * * *")
     history = model_mse.fit(X_train, Y_train, epochs=EPOCHS, validation_split=0.2, verbose=0, callbacks=[tfdocs.modeling.EpochDots()])
+
+    hist = pd.DataFrame(history.history)
+    hist['epoch'] = history.epoch
+    print("\n")
+    print(hist.tail())
+   
     plotter = tfdocs.plots.HistoryPlotter(smoothing_std=2)
     plotter.plot({'Basic': history}, metric = "mae")  
     plt.ylim([0, 10])  
@@ -135,6 +141,12 @@ if __name__ == "__main__":
 
     print("* * * MAE Model * * *")
     history = model_mae.fit(X_train, Y_train, epochs=EPOCHS, validation_split=0.2, verbose=0, callbacks=[tfdocs.modeling.EpochDots()])
+    
+    hist = pd.DataFrame(history.history)
+    hist['epoch'] = history.epoch
+    print("\n")
+    print(hist.tail())
+
     plotter = tfdocs.plots.HistoryPlotter(smoothing_std=2)
     plotter.plot({'Basic': history}, metric = "mae")  
     plt.ylim([0, 10])  
