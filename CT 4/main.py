@@ -116,7 +116,7 @@ def get_baseline_scores(training_data: list, validation_data: list, testing_data
     '''
     scores = []
     for i in range(3):
-        model = RandomForestClassifier((class_weight="balanced",n_estimators=50))
+        model = RandomForestClassifier(class_weight="balanced",n_estimators=50)
         model.fit(training_data[0], training_data[1])
 
         train_y_pred = model.predict(training_data[0])
