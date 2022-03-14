@@ -3,6 +3,7 @@
 *.docx
 *.pdf
 *.pages
+*.numbers
 .DS_Store
 launch.json
 
@@ -14,6 +15,8 @@ CT\ 2/hpo/
 CT\ 2/*.png
 
 CT\ 3/screenshots
+
+CT\ 4/Screenshots
 
 # Portfolio Milestone
 Portfolio\ Project/Milestone/faces/tmp
