@@ -27,12 +27,15 @@ of "anchor", "todo", "fixme", "stub", "note", "review", "section", "class", "fun
 this extension. To trigger these keywords, they must be typed in all caps. 
 """
 
+from curses import raw
+from xmlrpc.client import Boolean
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import argparse
 import itertools
 import os
+import time
 from tqdm import tqdm
 from deepchem import deepchem as dc
 from sklearn.metrics import accuracy_score
@@ -384,12 +387,50 @@ def save_score_snapshot(scores, num_models, count):
         os.makedirs("/tmp/tox_21/logs")
 
     with open("/tmp/tox_21/logs/top_{}_models_step_{}.txt".format(num_models, count), "w+") as file:
-        tqdm.write(f"Saving snapshot of top {num_models} at step {count} to /tmp/tox_21/logs/")
+        tqdm.write(f"Saving snapshot of top {num_models} models at step {count} to /tmp/tox_21/logs/")
         top_model_keys = sorted(scores, key=scores.get, reverse=True)[:num_models]
         file.write("*** Step: {} | Top {} Models ***\n\n".format(count, num_models))
         for i, params in enumerate(top_model_keys):
-            file.write(f"Config {i+1}: Score = {scores[params]}\n\tNeurons per Hidden Layer: {params[0]}\n\tNumber of Hidden Layers: {params[1]}\n\tLearning Rate: {params[2]}\n\tDropout (Keep %): {params[3]}\n\tNumber of Epochs: {params[4]}\n\tBatch Size: {params[5]}\n\tWeight Positives: {str(params[6])}\n\n")
+            file.write(f"Config {i+1}: Scores = {scores[params]}\n\tNeurons per Hidden Layer: {params[0]}\n\tNumber of Hidden Layers: {params[1]}\n\tLearning Rate: {params[2]}\n\tDropout (Keep %): {params[3]}\n\tNumber of Epochs: {params[4]}\n\tBatch Size: {params[5]}\n\tWeight Positives: {str(params[6])}\n\n")
 
+def eval_thread_writeback(thread_num, inqueue: Queue, outqueue: Queue, reps, early_stop):
+    while not inqueue.empty():
+
+        n_hidden, lr, n_epochs, n_layers, batch_size, dropout, weighted_pos = q.get()
+        temp_scores = []
+        for i in tqdm(range(reps), desc=f"Thread {thread_num} - HPO Testing", position=thread_num, leave=False):
+            temp_scores.append(eval_tox21_hyperparams([train_X, train_y, train_w], [valid_X, valid_y, valid_w], n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos, verbosity, early_stop)) # Get score from validation set
+        outqueue.put(((n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos),temp_scores))
+        inqueue.task_done()
+
+def save_score_snapshot_thread(pbar, q: Queue, scores, thresh, snapshot_thresh, num_models, baseline_avg, stop_flag):
+    count = 0
+
+    while True: # Make sure to finish queue as well
+        try:
+            item = q.get(timeout=5.0)
+            count += 1
+            pbar.update(1)
+
+            params = item[0]
+            raw_scores = item[1]
+
+            # tqdm.write("{}".format(params))
+            # tqdm.write("{}".format(raw_scores))
+
+            if (baseline_avg - np.mean(raw_scores)) < thresh: # Add to score list if within threshold
+                scores[params] = raw_scores
+            
+            if (count % snapshot_thresh) == 0: # See if need to save snapshot
+                save_score_snapshot(scores, num_models, count)
+
+            q.task_done()
+        except:
+            if stop_flag() : 
+                break
+            pass
+
+    tqdm.write("Finished saving scores")
 
 if __name__ == "__main__":
 	
@@ -410,7 +451,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_threads", type=int, default=1, help="Number of threads to test HPO combinations. If <= 1, only main thread will be used. Logging of snapshot file is not enabled with multithreading")
 
 
-
     args = parser.parse_args()
 
     verbosity = args.verbose
@@ -418,7 +458,7 @@ if __name__ == "__main__":
         verbosity = 3
 
     thresh = 0.20 # Models scores during HPO are compared with baseline. Any score with a difference below more than thresh isn't save to reduce memory for large HPO search
-    snapshot_thresh = 50
+    snapshot_thresh = 10
 
     train_X, train_y, train_w, valid_X, valid_y, valid_w, test_X, test_y, test_w = load_dataset()
 
@@ -485,6 +525,9 @@ if __name__ == "__main__":
                 if (count % snapshot_thresh) == 0:
                     save_score_snapshot(scores, args.test_num, count)
             else:
+                '''
+                SINGLE QUEUE
+                ------------
                 counter = Value('i', 0, lock=False)
                 counter.value = 0
                 for i in range(args.num_threads):
@@ -492,7 +535,23 @@ if __name__ == "__main__":
                     worker = Thread(target=eval_thread, args=(i+1, q, pbar, scores, args.reps, thresh, args.early_stop, counter, snapshot_thresh, args.test_num, avg_valid))
                     worker.start()
                 q.join()
-        
+                '''
+                score_queue = Queue()
+                stop_flag = False
+                for i in range(args.num_threads): # Start processing threads
+                    worker = Thread(target=eval_thread_writeback, args=(i+1, q, score_queue, args.reps, args.early_stop))
+                    worker.start()
+                
+                # Start save thread
+                save_thread = Thread(target=save_score_snapshot_thread, args=(pbar, score_queue, scores, thresh, snapshot_thresh, args.test_num, avg_valid, lambda : stop_flag))
+                save_thread.start()
+
+                # Safely come back to main thread by waiting for everything
+                q.join()
+                score_queue.join()
+                stop_flag = True
+                save_thread.join()
+
         pbar.close()
         
     # Get average scores
@@ -507,6 +566,7 @@ if __name__ == "__main__":
     # Sort Models and get top t
     print("Getting top {} model configurations".format(args.test_num))
     top_model_keys = sorted(avg_scores, key=avg_scores.get, reverse=True)[:args.test_num]
+    print(top_model_keys)
 
     # Compare to baseline
     print("Testing top {} models with 3 reps each")
