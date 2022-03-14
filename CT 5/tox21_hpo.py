@@ -148,8 +148,8 @@ def eval_tox21_hyperparams(training_data: list, validation_data: list, n_hidden=
     d = 1024
 
     # Early stopping implemented by way of accuracy on validation set
-    min_delta = 0.01
-    patience = 5
+    min_delta = 0.005
+    patience = 7
     history = []
 
 
@@ -457,8 +457,8 @@ if __name__ == "__main__":
     if verbosity > 3:
         verbosity = 3
 
-    thresh = 0.20 # Models scores during HPO are compared with baseline. Any score with a difference below more than thresh isn't save to reduce memory for large HPO search
-    snapshot_thresh = 10
+    thresh = 0.05 # Models scores during HPO are compared with baseline. Any score with a difference below more than thresh isn't save to reduce memory for large HPO search
+    snapshot_thresh = 1000 # How many HPO combos to process before saving top n models
 
     train_X, train_y, train_w, valid_X, valid_y, valid_w, test_X, test_y, test_w = load_dataset()
 
