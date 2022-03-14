@@ -27,18 +27,19 @@ of "anchor", "todo", "fixme", "stub", "note", "review", "section", "class", "fun
 this extension. To trigger these keywords, they must be typed in all caps. 
 """
 
-from contextlib import redirect_stderr, redirect_stdout
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import argparse
 import itertools
+import os
 from tqdm import tqdm
 from deepchem import deepchem as dc
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from queue import Queue
 from threading import Lock, Thread
+from multiprocessing import Value
 
 # Seeds are set via assignment parameters
 np.random.seed(456)
@@ -144,8 +145,8 @@ def eval_tox21_hyperparams(training_data: list, validation_data: list, n_hidden=
     d = 1024
 
     # Early stopping implemented by way of accuracy on validation set
-    min_delta = 0.005
-    patience = 7
+    min_delta = 0.01
+    patience = 5
     history = []
 
 
@@ -356,25 +357,38 @@ def run_model(training_data: list, validation_data: list, testing_data: list, n_
 
             return [train_weighted_score, valid_weighted_score, test_weighted_score]
 
-def eval_thread(thread_num, q: Queue, l: Lock, pbar, scores, reps, thresh, early_stop):
+def eval_thread(thread_num, q: Queue, pbar, scores, reps, thresh, early_stop, counter, snapshot_thresh, num_models, baseline_avg):
 
     while not q.empty():
 
         n_hidden, lr, n_epochs, n_layers, batch_size, dropout, weighted_pos = q.get()
+        temp_scores = []
         for i in tqdm(range(reps), desc=f"Thread {thread_num} - HPO Testing", position=thread_num, leave=False):
-            score = eval_tox21_hyperparams([train_X, train_y, train_w], [valid_X, valid_y, valid_w], n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos, verbosity, early_stop) # Get score from validation set
-
-            l.acquire()
-            if (avg_valid - score) < thresh: # Only save to scores list if within threshold range
-                if (n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos) not in scores:
-                    scores[(n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos)] = [] 
-                scores[(n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos)].append(score)
-            l.release()
+            temp_scores.append(eval_tox21_hyperparams([train_X, train_y, train_w], [valid_X, valid_y, valid_w], n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos, verbosity, early_stop)) # Get score from validation set
 
         q.task_done()
-        tqdm.get_lock().acquire()
-        pbar.update(1)
+
+        tqdm.get_lock().acquire() # Acquire Lock
+        counter.value += 1 # Update Counter
+        pbar.update(1) # Update main HPO Bar
+        if (baseline_avg - np.mean(temp_scores)) < thresh: # Add to score list
+            scores[(n_hidden, n_layers, lr, dropout, n_epochs, batch_size, weighted_pos)] = temp_scores
+        if (counter.value % snapshot_thresh) == 0: # See if need to save snapshot
+            save_score_snapshot(scores, num_models, counter.value)
         tqdm.get_lock().release()
+
+def save_score_snapshot(scores, num_models, count):
+
+    # Check if dir exists
+    if not os.path.isdir("/tmp/tox_21/logs"):
+        os.makedirs("/tmp/tox_21/logs")
+
+    with open("/tmp/tox_21/logs/top_{}_models_step_{}.txt".format(num_models, count), "w+") as file:
+        tqdm.write(f"Saving snapshot of top {num_models} at step {count} to /tmp/tox_21/logs/")
+        top_model_keys = sorted(scores, key=scores.get, reverse=True)[:num_models]
+        file.write("*** Step: {} | Top {} Models ***\n\n".format(count, num_models))
+        for i, params in enumerate(top_model_keys):
+            file.write(f"Config {i+1}: Score = {scores[params]}\n\tNeurons per Hidden Layer: {params[0]}\n\tNumber of Hidden Layers: {params[1]}\n\tLearning Rate: {params[2]}\n\tDropout (Keep %): {params[3]}\n\tNumber of Epochs: {params[4]}\n\tBatch Size: {params[5]}\n\tWeight Positives: {str(params[6])}\n\n")
 
 
 if __name__ == "__main__":
@@ -393,7 +407,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--test_num", type=int, default=2, help="Number of final models to test against baseline after HPO. Models will be sorted by performance and the provided number will be tested")
     parser.add_argument("-e", "--early_stop", action="store_true", default=False, help="Flag denoting whether to turn on early-stopping during the HPO search training process")
     parser.add_argument("-v", "--verbose", action='count', default=0, help="Verbosity Level 0-3")
-    parser.add_argument("--num_threads", type=int, default=2, help="Number of threads to test HPO combinations. If <= 1, only main thread will be used. Logging of snapshot file is not enabled with multithreading")
+    parser.add_argument("--num_threads", type=int, default=1, help="Number of threads to test HPO combinations. If <= 1, only main thread will be used. Logging of snapshot file is not enabled with multithreading")
 
 
 
@@ -403,8 +417,8 @@ if __name__ == "__main__":
     if verbosity > 3:
         verbosity = 3
 
-    thresh = 0.05 # Models scores during HPO are compared with baseline. Any score with a difference below more than thresh isn't save to reduce memory for large HPO search
-    outfile = open("/tmp/tox_21/top_models.txt", 'w+')
+    thresh = 0.20 # Models scores during HPO are compared with baseline. Any score with a difference below more than thresh isn't save to reduce memory for large HPO search
+    snapshot_thresh = 50
 
     train_X, train_y, train_w, valid_X, valid_y, valid_w, test_X, test_y, test_w = load_dataset()
 
@@ -468,17 +482,14 @@ if __name__ == "__main__":
                 pbar.update(1)
                 q.task_done()
 
-                # Saving snapshot every 2500 steps
-                if (count % 2000) == 0:
-                    tqdm.write("Saving param config of {} top models at step {}".format(args.test_num, count))
-                    top_model_keys = sorted(scores, key=scores.get, reverse=True)[:args.test_num]
-                    outfile.write("*** Step: {} | Top {} Models ***\n\n".format(count, args.test_num))
-                    for i, params in enumerate(top_model_keys):
-                        outfile.write(f"Config {i+1}: Score = {scores[params]}\n\tNeurons per Hidden Layer: {params[0]}\n\tNumber of Hidden Layers: {params[1]}\n\tLearning Rate: {params[2]}\n\tDropout (Keep %): {params[3]}\n\tNumber of Epochs: {params[4]}\n\tBatch Size: {params[5]}\n\tWeight Positives: {str(params[6])}\n\n")
+                if (count % snapshot_thresh) == 0:
+                    save_score_snapshot(scores, args.test_num, count)
             else:
+                counter = Value('i', 0, lock=False)
+                counter.value = 0
                 for i in range(args.num_threads):
-                    l = Lock()
-                    worker = Thread(target=eval_thread, args=(i+1, q, l, pbar, scores, args.reps, thresh, args.early_stop))
+                    # l = Lock()
+                    worker = Thread(target=eval_thread, args=(i+1, q, pbar, scores, args.reps, thresh, args.early_stop, counter, snapshot_thresh, args.test_num, avg_valid))
                     worker.start()
                 q.join()
         
@@ -520,8 +531,6 @@ if __name__ == "__main__":
             tqdm.write(" Scores:\n\tTraining Set: {:.2f}\n\tValidation Set: {:.2f}\n\t Testing Set: {:.2f}\n\n".format(avg_train, avg_valid, avg_test))
             pbar.update(1)
         pbar.close()
-
-    outfile.close()
 
             
 
