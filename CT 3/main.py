@@ -10,10 +10,6 @@ In a nutshell, this is a *regression* problem where a **neural network** will be
 [**Auto MPG**](https://archive.ics.uci.edu/ml/datasets/auto+mpg) dataset. The trained model will be used to predict the feul efficiency of 
 late 1970s and early 1980s automobiles
 
-File Description
-----------------
-TODO - File Description Here
-
 Comment Anchors
 ---------------
 I am using the Comment Anchors extension for Visual Studio Code which utilizes specific keywords

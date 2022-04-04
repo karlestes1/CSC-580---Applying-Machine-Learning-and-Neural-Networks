@@ -15,10 +15,6 @@ If a compound it a "hit" in one of these experiments, it will likely be toxic fo
 Some sample code was provided for the creation of a neural network in TensorFlow V1. The assignment required adding dropout to the predifined network,
 calculating accuracy on the validation set, and logging results and graph structure via Tensorboard
 
-File Description
-----------------
-TODO - Put something here
-
 Comment Anchors
 ---------------
 I am using the Comment Anchors extension for Visual Studio Code which utilizes specific keywords

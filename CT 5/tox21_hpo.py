@@ -17,7 +17,35 @@ calculating accuracy on the validation set, and logging results and graph struct
 
 File Description
 ----------------
-TODO - Put something here
+A program which can tune multiple hyperparameters for a simple neural network tasked to classify the Tox21 dataset.
+The program can be run in single threaded or multithreaded mode. 
+
+Arguments to the program are as follows (for detailed information, run python tox_21.py -h):
+
+- n_hidden
+    Number of neurons in each layer
+- lr
+    The models learning rate (using the Adam optimizer)
+- n_epochs
+    The number of training epochs
+- n_layers
+    The number of fully connected layers
+- batch_size
+    The minibatch size for the trianing process
+- dropout
+    The dropout percentage
+- weight_positives
+    Whether to weight the positives examples since there are significnatly fewer of them
+- reps
+    Number of repititions per hyperparameter config 
+- test_num
+    Number of top models to test at the end of HPO
+- early_stop
+    Whether early stopping should be turned on
+- verbose
+    The programs verbosity level
+- num_threads
+    The number of threads to use for HPO
 
 Comment Anchors
 ---------------
@@ -27,8 +55,6 @@ of "anchor", "todo", "fixme", "stub", "note", "review", "section", "class", "fun
 this extension. To trigger these keywords, they must be typed in all caps. 
 """
 
-from curses import raw
-from xmlrpc.client import Boolean
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -408,7 +434,7 @@ def save_score_snapshot_thread(pbar, q: Queue, scores, thresh, snapshot_thresh, 
 
     while True: # Make sure to finish queue as well
         try:
-            item = q.get(timeout=5.0)
+            item = q.get(timeout=30.0)
             count += 1
             pbar.update(1)
 
