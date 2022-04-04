@@ -4,6 +4,8 @@
 *.pdf
 *.pages
 *.numbers
+*.mdj
+*.xmind
 .DS_Store
 launch.json
 
@@ -18,5 +20,17 @@ CT\ 3/screenshots
 
 CT\ 4/Screenshots
 
+CT\ 5/__pycache__
+CT\ 5/screenshots
+CT\ 5/eval.py
+CT\ 5/*.csv
+
+CT\ 6/Graphs
+CT\ 6/*.png
+
 # Portfolio Milestone
 Portfolio\ Project/Milestone/faces/tmp
+Portfolio\ Project/Final/*.png
+!Portfolio\ Project/Final/Program_Analysis.pdf
+!Portfolio\ Project/Final/GAN_Paper.pdf
+
