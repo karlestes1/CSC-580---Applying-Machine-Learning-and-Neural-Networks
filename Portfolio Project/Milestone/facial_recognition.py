@@ -6,11 +6,13 @@ Due: March 13th, 2022
 
 Asignment Prompt
 ----------------
-# TODO - Prompt
+For this Portfolio Project Milestone, you will build on the programming requirements presented in Critical Thinking Assignment, Module 1, Option 1. 
+In this Milestone, you will implement a Python program that uses facial recognition to determine if an individual face is present in a group of faces.
 
 File Description
 ----------------
-# TODO - File Description
+This script will allow for to primary choices upon execution. The user can either search for "known_faces" in the unkown faces which will output a list of all images
+that contain the known face. The other mode will annotate each face in "unkown_images" with a label (name of detected person or unkown).
 
 Comment Anchors
 ---------------
