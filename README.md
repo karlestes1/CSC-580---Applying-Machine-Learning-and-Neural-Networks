@@ -22,6 +22,9 @@ The optional textbook for this class was [**Deep Learning Pipeline: Building a D
 I am using the [Comment Anchors extension](https://marketplace.visualstudio.com/items?itemName=ExodiusStudios.comment-anchors) for Visual Studio Code which places anchors within comments to allow for easy navigation and the ability to track TODO's, code reviews, etc. You may find the following tags intersperesed throughout the code in this repository: ANCHOR, TODO, FIXME, STUB, NOTE, REVIEW, SECTION, LINK, CELL, FUNCTION, CLASS
 
 For anyone using this extension, please note that CELL, FUNCTION, and CLASS are tags I defined myself. 
+
+### Jupyter Notebooks
+For many of the assignments, I used a jupyter notebook to breakdown the program and test various components of it. In cases where this was the case, I left the Jupyter Notebook uploaded. The python file is the final code for each assignment, though. 
 <br />
 
 ___
